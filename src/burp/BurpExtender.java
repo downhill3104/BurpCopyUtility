@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -68,13 +67,13 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                 file = File.createTempFile("burp_request_response_", ".txt");
                 file.deleteOnExit();
                 FileOutputStream fos = new FileOutputStream(file);
+                IHttpRequestResponse[] messages = invocation.getSelectedMessages();
     			for ( int i = 0; i < messages.length; ++i ) {
-    				buf.put(messages[i].getRequest());
-    				buf.put(new String("\r\n======================================================\r\n").getBytes());
-    				buf.put(messages[i].getResponse());
-    				buf.put(new String("\r\n======================================================\r\n").getBytes());
+    				fos.write(messages[i].getRequest());
+    				fos.write(new String("\r\n======================================================\r\n").getBytes());
+    				fos.write(messages[i].getResponse());
+    				fos.write(new String("\r\n======================================================\r\n").getBytes());
     			}
-                fos.write();
 	            fos.close();
             } catch (FileNotFoundException e) {
             } catch (IOException ioe) {
@@ -89,23 +88,5 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	    @Override public boolean isDataFlavorSupported(DataFlavor flavor) {
 	        return flavor.equals(DataFlavor.javaFileListFlavor);
 	    }
-
-		private byte[] getMessages(IHttpRequestResponse[] messages) {
-			long size = 0;
-			for ( int i = 0; i < messages.length; ++i ) {
-				size += messages[i].getRequest().length;
-				size += "\r\n======================================================\r\n".length();
-				size += messages[i].getResponse().length;
-				size += "\r\n======================================================\r\n".length();
-			}
-			ByteBuffer buf = ByteBuffer.allocate(size);
-			for ( int i = 0; i < messages.length; ++i ) {
-				buf.put(messages[i].getRequest());
-				buf.put(new String("\r\n======================================================\r\n").getBytes());
-				buf.put(messages[i].getResponse());
-				buf.put(new String("\r\n======================================================\r\n").getBytes());
-			}
-			return buf.array();
-		}
 	}
 }
