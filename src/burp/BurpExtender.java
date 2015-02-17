@@ -9,12 +9,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,10 +22,7 @@ import java.util.regex.Pattern;
 
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.TransferHandler;
-
-import org.xml.sax.InputSource;
 
 public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 
@@ -90,17 +85,6 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
 					Charset cs = getCharset(response);
 					SetClipboard(new String(selection, cs));
-					IResponseInfo responseInfo = helpers.analyzeResponse(invocation.getSelectedMessages()[0].getResponse());
-					JOptionPane.showMessageDialog(null, responseInfo.getInferredMimeType() + "¥r¥n" + responseInfo.getStatedMimeType());
-					ByteArrayInputStream bis = new ByteArrayInputStream(Arrays.copyOfRange(response, responseInfo.getBodyOffset(), response.length));
-					try {
-						String mime = URLConnection.guessContentTypeFromStream(bis);
-						String encoding = new InputSource(bis).getEncoding();
-						JOptionPane.showMessageDialog(null, encoding);
-					} catch (IOException e1) {
-						// TODO 自動生成された catch ブロック
-						//e1.printStackTrace();
-					}
 				}
 			});
 			miList.add(miCopy);
@@ -117,17 +101,40 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	}
 
 	private Charset getCharset(byte[] response) {
-		IResponseInfo resInfo = helpers.analyzeResponse(response);
+//		IResponseInfo resInfo = helpers.analyzeResponse(response);
+
+/*
 		List<String> headers = resInfo.getHeaders();
+		Pattern regex = Pattern.compile("charset=([A-Za-z0-9\\-\\+\\.:_]+)", Pattern.CASE_INSENSITIVE);
 		for ( String header : headers ) {
 			if ( header.indexOf("Content-Type: ") == 0 && header.indexOf("charset=") > 0 ) {
-				Matcher m = Pattern.compile("charset=([A-Za-z0-9\\-\\+\\.:_]+)").matcher(header);
+				Matcher m = regex.matcher(header);
 				if ( m.find() ) {
+					JOptionPane.showMessageDialog(null, m.group(1));
 					return Charset.forName(m.group(1));
 				}
 			}
 		}
-		return Charset.forName("UTF-8");
+*/
+
+		Pattern regex = Pattern.compile("(?:charset|encoding)=[^A-Za-z0-9\\-\\+\\.:_]?([A-Za-z0-9\\-\\+\\.:_]+)", Pattern.CASE_INSENSITIVE);
+		Matcher m = regex.matcher(helpers.bytesToString(response));
+		if ( m.find() ) {
+			return Charset.forName(m.group(1));
+		}
+//		byte[] resBody = Arrays.copyOfRange(response, resInfo.getBodyOffset(), response.length - 1);
+/*
+		String[] resLines = helpers.bytesToString(response).split("(\r\n|\n|\r)");
+		for ( int i = 0; i < resLines.length; ++i ) {
+			Matcher m = regex.matcher(resLines[i]);
+			if ( m.find() ) {
+				JOptionPane.showMessageDialog(null, m.group(1));
+				return Charset.forName(m.group(1));
+			}
+		}
+*/
+
+		return null;
 	}
 
 	class TempFileTransferable implements Transferable {
