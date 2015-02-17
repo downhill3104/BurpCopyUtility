@@ -27,7 +27,19 @@ import javax.swing.TransferHandler;
 
 public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 
+	private final String EXTENSION_NAME = "Copy Utility";
+
+	private final String COPY_AUTO_DETECT_MENU_TEXT   = "Copy with Charset (auto-detect)";
+	private final String COPY_SPECIFIED_MENU_TEXT     = "Copy with Charset";
+	private final String COPY_DRAG_AND_DROP_MENU_TEXT = "Copy Item by D&D";
+	private final String DEFAULT_CHARSET              = "UTF-8";
+
 	private IExtensionHelpers helpers;
+	private IContextMenuInvocation invocation;
+	private List<JMenuItem> miCopy;
+	private List<JMenuItem> miCopyDD;
+	private CopyByCharset cc;
+	private boolean isRequest;
 
 	@Override
 	/**
@@ -35,155 +47,78 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	 */
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks){
 		helpers = callbacks.getHelpers();
-		callbacks.setExtensionName("CopyUtility");
+		callbacks.setExtensionName(EXTENSION_NAME);
 		callbacks.registerContextMenuFactory(this);
-	}
 
-	@Override
-	public List<JMenuItem> createMenuItems(final IContextMenuInvocation invocation) {
-		List<JMenuItem> miList = new ArrayList<JMenuItem>();
-		JMenuItem miCopy;
-		JMenu miCopyCS;
-		JMenuItem miCopyUTF8;
-		JMenuItem miCopyEUCJP;
-		JMenuItem miCopySJIS;
-		JMenuItem miCopyJIS;
-		switch ( invocation.getInvocationContext() ) {
-		case IContextMenuInvocation.CONTEXT_PROXY_HISTORY:
-			miCopy = new JMenuItem("Copy D&D");
-			miCopy.setTransferHandler(new TransferHandler() {
+		cc = new CopyByCharset();
+		miCopy = new ArrayList<JMenuItem>();
+		miCopy.add(new JMenuItem(COPY_AUTO_DETECT_MENU_TEXT){{this.addActionListener(cc);}});
+		JMenu mCopy = new JMenu(COPY_SPECIFIED_MENU_TEXT);
+		String[] encodings = {"UTF-8", "EUC-JP", "Shift_JIS", "ISO-2022-JP"};
+		for ( String encoding : encodings ) {
+			mCopy.add(new JMenuItem(encoding){{this.addActionListener(cc);}});
+		}
+		miCopy.add(mCopy);
+
+		miCopyDD = new ArrayList<JMenuItem>();
+		miCopyDD.add(new JMenuItem(COPY_DRAG_AND_DROP_MENU_TEXT){{
+			this.setTransferHandler(new TransferHandler() {
 	            @Override public int getSourceActions(JComponent c) {
 	                return MOVE;
 	            }
 	            @Override protected Transferable createTransferable(JComponent c) {
-                    return new TempFileTransferable(invocation);
+	                return new TempFileTransferable(invocation);
 	            }
-	        });
-			miCopy.addMouseListener(new MouseAdapter() {
+			});
+			this.addMouseListener(new MouseAdapter() {
 	            @Override public void mousePressed(MouseEvent e) {
-//	                System.out.println(e);
 	                JComponent c = (JComponent) e.getComponent();
 	                c.getTransferHandler().exportAsDrag(c, e, TransferHandler.MOVE);
 	            }
-	        });
-			miList.add(miCopy);
-			return miList;
+
+			});
+		}});
+	}
+
+	@Override
+	public List<JMenuItem> createMenuItems(final IContextMenuInvocation invocation) {
+		this.invocation = invocation;
+		switch ( invocation.getInvocationContext() ) {
+		case IContextMenuInvocation.CONTEXT_PROXY_HISTORY:
+			return miCopyDD;
 		case IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_REQUEST:
 		case IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_REQUEST:
-			miCopy = new JMenuItem("Copy with Charset");
-			miCopy.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] request = invocation.getSelectedMessages()[0].getRequest();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
-					SetClipboard(new String(selection));
-				}
-			});
-			miList.add(miCopy);
-			miCopyCS = new JMenu("Copy of Charset");
-			miCopyUTF8 = new JMenuItem("UTF-8");
-			miCopyUTF8.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] request = invocation.getSelectedMessages()[0].getRequest();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("UTF-8")));
-				}
-			});
-			miCopyEUCJP = new JMenuItem("EUC-JP");
-			miCopyEUCJP.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] request = invocation.getSelectedMessages()[0].getRequest();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("EUC-JP")));
-				}
-			});
-			miCopySJIS = new JMenuItem("Shift_JIS");
-			miCopySJIS.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] request = invocation.getSelectedMessages()[0].getRequest();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("Shift_JIS")));
-				}
-			});
-			miCopyJIS = new JMenuItem("ISO-2022-JP");
-			miCopyJIS.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] request = invocation.getSelectedMessages()[0].getRequest();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("ISO-2022-JP")));
-				}
-			});
-			miCopyCS.add(miCopyUTF8);
-			miCopyCS.add(miCopyEUCJP);
-			miCopyCS.add(miCopySJIS);
-			miCopyCS.add(miCopyJIS);
-			miList.add(miCopyCS);
-			return miList;
+			this.isRequest = true;
+			return this.miCopy;
 		case IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_RESPONSE:
 		case IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_RESPONSE:
-			miCopy = new JMenuItem("Copy with Charset");
-			miCopy.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] response = invocation.getSelectedMessages()[0].getResponse();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
-					Charset cs = getCharset(response);
-					if ( cs == null ) {
-						cs = Charset.forName("UTF-8");
-					}
-					SetClipboard(new String(selection, cs));
-				}
-			});
-			miList.add(miCopy);
-			miCopyCS = new JMenu("Copy of Charset");
-			miCopyUTF8 = new JMenuItem("UTF-8");
-			miCopyUTF8.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] response = invocation.getSelectedMessages()[0].getResponse();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("UTF-8")));
-				}
-			});
-			miCopyEUCJP = new JMenuItem("EUC-JP");
-			miCopyEUCJP.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] response = invocation.getSelectedMessages()[0].getResponse();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("EUC-JP")));
-				}
-			});
-			miCopySJIS = new JMenuItem("Shift_JIS");
-			miCopySJIS.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] response = invocation.getSelectedMessages()[0].getResponse();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("Shift_JIS")));
-				}
-			});
-			miCopyJIS = new JMenuItem("ISO-2022-JP");
-			miCopyJIS.addActionListener(new ActionListener(){
-				@Override public void actionPerformed(ActionEvent e) {
-					byte[] response = invocation.getSelectedMessages()[0].getResponse();
-					int[] range = invocation.getSelectionBounds();
-					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
-					SetClipboard(new String(selection, Charset.forName("ISO-2022-JP")));
-				}
-			});
-			miCopyCS.add(miCopyUTF8);
-			miCopyCS.add(miCopyEUCJP);
-			miCopyCS.add(miCopySJIS);
-			miCopyCS.add(miCopyJIS);
-			miList.add(miCopyCS);
-			return miList;
+			isRequest = false;
+			return miCopy;
 		}
 		return null;
+	}
+
+	private class CopyByCharset implements ActionListener {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			byte[] message;
+			if ( isRequest ) {
+				message = invocation.getSelectedMessages()[0].getRequest();
+			} else {
+				message = invocation.getSelectedMessages()[0].getResponse();
+			}
+			int[] range = invocation.getSelectionBounds();
+			byte[] selection = Arrays.copyOfRange(message, range[0], range[1]);
+
+			Charset cs;
+			if ( ((JMenuItem)e.getSource()).getText() == COPY_AUTO_DETECT_MENU_TEXT ) {
+				cs = Charset.forName(getCharsetName(message));
+			} else {
+				cs = Charset.forName(((JMenuItem)e.getSource()).getText());
+			}
+
+			SetClipboard(new String(selection, cs));
+		}
 	}
 
 	private void SetClipboard(String str) {
@@ -193,7 +128,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 		clip.setContents(ss, ss);
 	}
 
-	private Charset getCharset(byte[] response) {
+	private String getCharsetName(byte[] message) {
 //		IResponseInfo resInfo = helpers.analyzeResponse(response);
 
 /*
@@ -211,9 +146,9 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 */
 
 		Pattern regex = Pattern.compile("(?:charset|encoding)=[^A-Za-z0-9\\-\\+\\.:_]?([A-Za-z0-9\\-\\+\\.:_]+)", Pattern.CASE_INSENSITIVE);
-		Matcher m = regex.matcher(helpers.bytesToString(response));
+		Matcher m = regex.matcher(helpers.bytesToString(message));
 		if ( m.find() ) {
-			return Charset.forName(m.group(1));
+			return m.group(1);
 		}
 //		byte[] resBody = Arrays.copyOfRange(response, resInfo.getBodyOffset(), response.length - 1);
 /*
@@ -227,7 +162,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 		}
 */
 
-		return null;
+		return DEFAULT_CHARSET;
 	}
 
 	class TempFileTransferable implements Transferable {
