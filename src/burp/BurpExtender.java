@@ -21,6 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.swing.JComponent;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.TransferHandler;
 
@@ -42,6 +43,11 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	public List<JMenuItem> createMenuItems(final IContextMenuInvocation invocation) {
 		List<JMenuItem> miList = new ArrayList<JMenuItem>();
 		JMenuItem miCopy;
+		JMenu miCopyCS;
+		JMenuItem miCopyUTF8;
+		JMenuItem miCopyEUCJP;
+		JMenuItem miCopySJIS;
+		JMenuItem miCopyJIS;
 		switch ( invocation.getInvocationContext() ) {
 		case IContextMenuInvocation.CONTEXT_PROXY_HISTORY:
 			miCopy = new JMenuItem("Copy D&D");
@@ -74,6 +80,48 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 				}
 			});
 			miList.add(miCopy);
+			miCopyCS = new JMenu("Copy of Charset");
+			miCopyUTF8 = new JMenuItem("UTF-8");
+			miCopyUTF8.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] request = invocation.getSelectedMessages()[0].getRequest();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("UTF-8")));
+				}
+			});
+			miCopyEUCJP = new JMenuItem("EUC-JP");
+			miCopyEUCJP.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] request = invocation.getSelectedMessages()[0].getRequest();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("EUC-JP")));
+				}
+			});
+			miCopySJIS = new JMenuItem("Shift_JIS");
+			miCopySJIS.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] request = invocation.getSelectedMessages()[0].getRequest();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("Shift_JIS")));
+				}
+			});
+			miCopyJIS = new JMenuItem("ISO-2022-JP");
+			miCopyJIS.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] request = invocation.getSelectedMessages()[0].getRequest();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(request, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("ISO-2022-JP")));
+				}
+			});
+			miCopyCS.add(miCopyUTF8);
+			miCopyCS.add(miCopyEUCJP);
+			miCopyCS.add(miCopySJIS);
+			miCopyCS.add(miCopyJIS);
+			miList.add(miCopyCS);
 			return miList;
 		case IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_RESPONSE:
 		case IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_RESPONSE:
@@ -84,10 +132,55 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 					int[] range = invocation.getSelectionBounds();
 					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
 					Charset cs = getCharset(response);
+					if ( cs == null ) {
+						cs = Charset.forName("UTF-8");
+					}
 					SetClipboard(new String(selection, cs));
 				}
 			});
 			miList.add(miCopy);
+			miCopyCS = new JMenu("Copy of Charset");
+			miCopyUTF8 = new JMenuItem("UTF-8");
+			miCopyUTF8.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] response = invocation.getSelectedMessages()[0].getResponse();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("UTF-8")));
+				}
+			});
+			miCopyEUCJP = new JMenuItem("EUC-JP");
+			miCopyEUCJP.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] response = invocation.getSelectedMessages()[0].getResponse();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("EUC-JP")));
+				}
+			});
+			miCopySJIS = new JMenuItem("Shift_JIS");
+			miCopySJIS.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] response = invocation.getSelectedMessages()[0].getResponse();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("Shift_JIS")));
+				}
+			});
+			miCopyJIS = new JMenuItem("ISO-2022-JP");
+			miCopyJIS.addActionListener(new ActionListener(){
+				@Override public void actionPerformed(ActionEvent e) {
+					byte[] response = invocation.getSelectedMessages()[0].getResponse();
+					int[] range = invocation.getSelectionBounds();
+					byte[] selection = Arrays.copyOfRange(response, range[0], range[1]);
+					SetClipboard(new String(selection, Charset.forName("ISO-2022-JP")));
+				}
+			});
+			miCopyCS.add(miCopyUTF8);
+			miCopyCS.add(miCopyEUCJP);
+			miCopyCS.add(miCopySJIS);
+			miCopyCS.add(miCopyJIS);
+			miList.add(miCopyCS);
 			return miList;
 		}
 		return null;
