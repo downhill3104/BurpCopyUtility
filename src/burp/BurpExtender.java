@@ -13,12 +13,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -27,26 +28,38 @@ import javax.swing.TransferHandler;
 
 public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 
-	private final String EXTENSION_NAME = "Copy Utility";
+	private final static String EXTENSION_NAME = "Copy Utility (Japanese Charset)";
 
-	private final String COPY_AUTO_DETECT_MENU_TEXT   = "Copy with Charset (auto-detect)";
-	private final String COPY_SPECIFIED_MENU_TEXT     = "Copy with Charset";
-	private final String COPY_DRAG_AND_DROP_MENU_TEXT = "Copy Item by D&D";
-	private final String DEFAULT_CHARSET              = "UTF-8";
+	private final static String COPY_AUTO_DETECT_MENU_TEXT   = "Copy with Charset (auto-detect)";
+	private final static String COPY_SPECIFIED_MENU_TEXT     = "Copy with Charset";
+	private final static String COPY_DRAG_AND_DROP_MENU_TEXT = "Copy Item by D&D";
+	private final static String DEFAULT_CHARSET              = "UTF-8";
 
-	private IExtensionHelpers helpers;
+	private static List<Charset> charsets;
+	static {
+		charsets = Arrays.asList(
+			Charset.forName("ISO-2022-JP"),
+			Charset.forName("windows-31j"),
+			Charset.forName("Shift_JIS"),
+			Charset.forName("EUC-JP"),
+			Charset.forName("UTF-8")
+		);
+	}
+
+//	private IExtensionHelpers helpers;
 	private IContextMenuInvocation invocation;
 	private List<JMenuItem> miCopy;
 	private List<JMenuItem> miCopyDD;
 	private CopyByCharset cc;
 	private boolean isRequest;
 
+
 	@Override
 	/**
 	 * IBurpExtenderのメソッド
 	 */
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks){
-		helpers = callbacks.getHelpers();
+//		helpers = callbacks.getHelpers();
 		callbacks.setExtensionName(EXTENSION_NAME);
 		callbacks.registerContextMenuFactory(this);
 
@@ -54,7 +67,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 		miCopy = new ArrayList<JMenuItem>();
 		miCopy.add(new JMenuItem(COPY_AUTO_DETECT_MENU_TEXT){{this.addActionListener(cc);}});
 		JMenu mCopy = new JMenu(COPY_SPECIFIED_MENU_TEXT);
-		String[] encodings = {"UTF-8", "EUC-JP", "Shift_JIS", "ISO-2022-JP"};
+		String[] encodings = {"UTF-8", "EUC-JP", "Shift_JIS", "windows-31j", "ISO-2022-JP"};
 		for ( String encoding : encodings ) {
 			mCopy.add(new JMenuItem(encoding){{this.addActionListener(cc);}});
 		}
@@ -144,12 +157,13 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 			}
 		}
 */
-
+/*
 		Pattern regex = Pattern.compile("(?:charset|encoding)=[^A-Za-z0-9\\-\\+\\.:_]?([A-Za-z0-9\\-\\+\\.:_]+)", Pattern.CASE_INSENSITIVE);
 		Matcher m = regex.matcher(helpers.bytesToString(message));
 		if ( m.find() ) {
 			return m.group(1);
 		}
+*/
 //		byte[] resBody = Arrays.copyOfRange(response, resInfo.getBodyOffset(), response.length - 1);
 /*
 		String[] resLines = helpers.bytesToString(response).split("(\r\n|\n|\r)");
@@ -161,6 +175,15 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 			}
 		}
 */
+		for (Charset charset : charsets) {
+			CharsetDecoder decoder = charset.newDecoder();
+			try {
+				decoder.decode(ByteBuffer.wrap(message)).toString();
+				return charset.name();
+			} catch (CharacterCodingException e) {
+				continue;
+			}
+		}
 
 		return DEFAULT_CHARSET;
 	}
