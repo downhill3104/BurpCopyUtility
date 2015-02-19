@@ -46,7 +46,8 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 		);
 	}
 
-//	private IExtensionHelpers helpers;
+	private IBurpExtenderCallbacks callbacks;
+	private IExtensionHelpers helpers;
 	private IContextMenuInvocation invocation;
 	private List<JMenuItem> miCopy;
 	private List<JMenuItem> miCopyDD;
@@ -59,7 +60,8 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	 * IBurpExtenderのメソッド
 	 */
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks){
-//		helpers = callbacks.getHelpers();
+		this.callbacks = callbacks;
+		this.helpers = callbacks.getHelpers();
 		callbacks.setExtensionName(EXTENSION_NAME);
 		callbacks.registerContextMenuFactory(this);
 
@@ -95,6 +97,8 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 
 	@Override
 	public List<JMenuItem> createMenuItems(final IContextMenuInvocation invocation) {
+//		JOptionPane.showMessageDialog(null, ((JTextComponent)((IMessageEditor)invocation.getInputEvent().getSource()).getComponent()).getSelectedText() );
+//		JOptionPane.showMessageDialog(null, new String( ((ITextEditor)invocation.getInputEvent().getSource()).getText() ) );
 		this.invocation = invocation;
 		switch ( invocation.getInvocationContext() ) {
 		case IContextMenuInvocation.CONTEXT_PROXY_HISTORY:
@@ -114,6 +118,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 	private class CopyByCharset implements ActionListener {
 		@Override
 		public void actionPerformed(ActionEvent e) {
+
 			byte[] message;
 			if ( isRequest ) {
 				message = invocation.getSelectedMessages()[0].getRequest();
@@ -122,7 +127,15 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
 			}
 			int[] range = invocation.getSelectionBounds();
 			byte[] selection = Arrays.copyOfRange(message, range[0], range[1]);
-
+/*
+			JPopupMenu pmenu = ((JMenuItem)e.getSource()).getComponentPopupMenu();
+			JTextComponent text = (JTextComponent)pmenu.getInvoker();
+			JOptionPane.showMessageDialog(null, pmenu.getInvoker().getClass().getName());
+/*
+			JPopupMenu pmenu = (JPopupMenu)invocation.getInputEvent().getSource();
+			JTextComponent text = (JTextComponent)pmenu.getInvoker();
+			JOptionPane.showMessageDialog(null, text.getSelectedText());
+*/
 			Charset cs;
 			if ( ((JMenuItem)e.getSource()).getText() == COPY_AUTO_DETECT_MENU_TEXT ) {
 				cs = Charset.forName(getCharsetName(message));
